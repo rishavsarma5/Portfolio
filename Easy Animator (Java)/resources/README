@@ -1,0 +1,171 @@
+Our design works by having command line arguments first take in parameters which dictate the view
+type to be created. The Model is created by reading in a file using AnimationFileReader and built
+with TweenModelBuilder. The IView and IController are created using factory classes
+(CreateController and CreateView). The Controller then sets the tempo and runs the start()
+method which, based on the IView instance it has, will run a different "draw" method. Each Interface
+has multiple commands that are not all used in every Class. These classes throw
+UnsupportedOperationExceptions to deal with public methods they do not use.
+
+Why we used controllers:
+We thought it would be more design appropriate to handle the running of the animation by the
+controller which simply supports a start method. The SVG/Text controllers just use Model information
+to create formatted strings from the List of Motion for each Shape. The VisualAnimation controller
+implements JFrame to render the animation on screen.
+
+Design we used when converting from changes to motions:
+Each kind of change only consists of a change in a certain attribute and their time may overlap or
+potentially creates a gap in between. The design we used here is to first check for if the start
+position/ end position of each move, the start color and end color of each color change or the
+width and height of each scale change is consistent to the one before it or to the one behind.
+If that’s true, we add all start time and end time to a set to generate a list of motions that
+has no gaps or overlaps in between. Because a set only consists on non-duplicated elements, we can
+make sure that the motions will not overlap.
+
+ASSIGNMENT 6 CHANGES:
+The design changes for this assignment were easy to implement in that we only had to add a new IView
+implementation called InteractiveVisualView that used the same AnimatorPanel to render the
+animation provided from the model and operated over its own Controller implementation that was
+called InteractiveVisualController. This controller class is now an implementation of a new
+Controller interface called IInteractiveController which IController now extends. We decided to
+create a "super" controller interface for handling the interactive animator since it required having
+new methods that only pertained to interactive features that were called when buttons were pressed
+and input was given by the user (for changing the speed dynamically for instance). The controller
+needed these new public methods that the InteractiveVisualView could call when user actions were
+observed by JFrame. The InteractiveVisualController otherwise operated the same as the
+VisualAnimationController.
+
+Why we made a ControllerMock for testing:
+Instead of making a ViewMock for testing, we decided to create the InteractiveVisualControllerMock
+since the InteractiveVisualView directly called its provided Controller's methods whenever a
+certain interactive feature was used by the user. The controller contained the timer for the
+animation which was adjusted whenever a button or the checkbox was clicked by the public methods in
+the InteractiveVisualController that the InteractiveVisualView called in its actionPerformed and
+itemStateChanged methods. To test that the controller's timer, and the resulting animation, was
+changed accordingly, we implemented the mock in the controller for testing.
+
+The design we used for the Animation generator:
+For the purpose of being able to produce an animation programmatically and manually, we designed an
+interface called IAnimationCreator. Two subclasses were designed to implement this interface.
+For the subclass that generates an animation manipulating the Tower of Hanoi programmatically,
+we decided to use a recursive algorithm that can move a disk from one rod to another and then add
+the movements to the list of moves we saved in the field of this class. For the purpose of creating
+an animation manually, we also created another class, which has a list of 150 moves in its list of
+movements. It manipulates the animation of moving a pile of ovals from the top-left corner to the
+bottom-right corner.
+
+There are also an additional main file created called GeneratorMain that is used to create the
+programmatically generated and manual animation files.
+
+The new interfaces and classes descriptions can be found below.
+
+
+Interfaces:
+
+IModel:
+    This is the interface of the IModel model. The model supports various 2D shapes, supports
+    the describing of the size, position, and color of the shapes.
+IMotion:
+    Represent the motions of a shape in a given time interval. A motion is basically made up by list
+    of keyFrames and each of them has to be closely connected to each other. The name
+    differentiates the motion. StartTick and EndTick represent the length of the motion.
+IShape:
+    This is the interface of the Shape class that represents a 2D shape that a user would create to
+    populate the animation window.
+IKeyFrame:
+    Represent the shape's attributes at a certain tick. A keyFrame contains only one IShape.
+IController:
+   This interface represents an IController which handles starting the application for the various
+   implementations of Controller in outputting the IModel info into an output file, SVG file, or
+   running the animation.
+IInteractiveController:
+   This interface represents an IInteractiveController which extends the IController interface to
+   provide methods that are called for each interactive feature that users might interact with
+   dynamically. Otherwise, it contains and serves the same purpose as the IController interface for
+   outputting the IModel info into a different output format.
+IView:
+    An interface that represents all types of view in our program.
+IChange:
+    This represents the bridge we built between the tween builder and the model class.
+    The reason we created this interface and subclasses is because the model from the previous
+    assignments are not seperated by the type. However, we don't actually want to touch the
+    model class we have already tested. Therefore, we would like to store the info in the tween
+    builder before finishing and then pass all of them to the model.
+IAnimationCreator:
+   This interface represents the IAnimationCreator that creates two animations that can be run by
+   the EasyAnimator program from the rest of the code. The interface supports generating an
+   animation programmatically and also creates one that is hard-coded in the two string method. The
+   animations created are written into .txt files by the GeneratorMain class.
+
+Classes:
+
+Model:
+    Represents the Model which controls the Animation state by updating the size, position,
+    or color of 2D shapes that are added to a map. It also handles controlling how the animation
+    motions are implemented through the command list and offers various functionality for creating
+    2D shapes and updating their state.
+Shape:
+    Represents a 2D shape that users can create with its unique fields, setting the shape type, the
+    unique name, the size, position, and color. Allows the model to retrieve data of a 2D shape's
+    fields, and set it to specific values based on an animation motion.
+ShapeType (Enum):
+    Stores types for the 2D shapes that can be supported by the animator.
+AChange (Abstract):
+    Abstract class that represents a Change that removes duplicate code for the different
+    implementations of the IChange interface.
+MoveChange, ColorChange, ScaleChange:
+    Represents the three different type of changes in the animator. They are being added to the
+    AnimatorBuilder once their corresponding create functions are called. The reason why we are
+    basically saving them temporarily in the Animator Builder is because we don’t want to do fringe
+    checking everytime are trying to make a move. It’s definitely better to save them in the builder
+    class’s field first and them combine them into a list of motions that is made up of a list of
+    KeyFrames and each KeyFrame represents what the shapes look like at a given tick. When build is
+    called, the model is created and will be passed forward to the view.
+SVGController:
+   This class represents a SVGController which handles creating an SVG output file using the given
+   view and the Model created from the Main class. The start method calls SVGView which formats the
+   information from the Model before adding it to a SVG file to be played on a
+   browser.
+TextController:
+   This class represents a TextController which handles creating a .txt output file using the given
+   view and the Model created from the Main class. The start method calls TextView which formats the
+   information from the Model before adding it to a .txt output specified in the
+   main arguments. If the output is not specified, the Model information is printed to the console.
+VisualAnimationController:
+   This class represents a VisualAnimationController which handles rendering the Animation to the
+   screen using the given View and the Model created from the Main class. The start method calls
+   VisualAnimationView which uses JFrame to render the information from the Model to the screen on
+   a JPanel with scroll bars. The Controller implements a Swing Timer to play the animation for the
+   specific amount of time and has a tick rate (tempo) that can be set to play the animation at
+   different speeds.
+InteractiveVisualController:
+   This class represents a InteractiveVisualController which handles rendering the Animation to the
+   screen using the given View and the Model created from the Main class. The start method calls
+   InteractiveVisualView which uses JFrame to render the animation to the screen along with
+   interactive features like start, pause, resume, and restart buttons that can perform the given
+   action on the animation being rendered. There is also a checkbox that can be checked to enable
+   looping of the animation, as well as a text field and change speed button that can change the
+   tick rate (tempo) of the animation dynamically, so it runs at different speeds based on the
+   valid text-input provided.
+
+SVGView:
+  An SVG view class that is used to generate the SVG representation.
+TextView:
+  This class represents the view in text form.
+VisualAnimationView:
+   A public class that represents the realization of visual.
+InteractiveVisualView:
+   A public class that represents an interactive visual animation that the user can interact with.
+   The user is able to interact with buttons, check boxes, and text inputs to be able to start,
+   pause, restart, resume, and change the speed of the animation being played. The animation can
+   also be checked to loop once it ends.
+
+GeneratorMain:
+   This class represents a main class that constructs two animations which are written into files
+   that the Main class of the EastAnimator program can then play. Each animation contains 5 shapes.
+   One animation is generated programmatically while another is hard-coded.
+ManualGenerator:
+   This class represents an animation generator that manually creates a formatted string
+   representing an animation.
+TowerOfHanoiGenerator:
+   This class represents an animation generator that programmatically creates a 5-shape tower of
+   hanoi animation using the IChange interface and generated shape's motions.
